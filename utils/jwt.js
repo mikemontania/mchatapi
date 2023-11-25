@@ -1,5 +1,5 @@
 import jsonwebtoken from "jsonwebtoken";
-import 'dotenv/config';
+import { JWT_SECRET_KEY } from "../constants.js";
 
 function createAccessToken(user) {
   const expToken = new Date();
@@ -12,7 +12,7 @@ function createAccessToken(user) {
     exp: expToken.getTime(),
   };
 
-  return jsonwebtoken.sign(payload, process.env.JWT_SECRET_KEY);
+  return jsonwebtoken.sign(payload, JWT_SECRET_KEY);
 }
 
 function createRefreshToken(user) {
@@ -26,11 +26,11 @@ function createRefreshToken(user) {
     exp: expToken.getTime(),
   };
 
-  return jsonwebtoken.sign(payload, process.env.JWT_SECRET_KEY);
+  return jsonwebtoken.sign(payload, JWT_SECRET_KEY);
 }
 
 function decoded(token) {
-  return jsonwebtoken.decode(token, process.env.JWT_SECRET_KEY, true);
+  return jsonwebtoken.decode(token, JWT_SECRET_KEY, true);
 }
 
 function hasExpiredToken(token) {

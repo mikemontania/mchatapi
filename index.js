@@ -1,21 +1,19 @@
 import mongoose from "mongoose";
 import { server } from "./app.js";
+import { IP_SERVER, PORT, DB_USER, DB_PASSWORD, DB_HOST } from "./constants.js";
 import { io } from "./utils/index.js";
-import 'dotenv/config';
 
-const mongoDbUrl = process.env.DB_CNN;
-console.log(mongoDbUrl)
-const mongoDbLocal = "mongodb://localhost/mchat";
+const mongoDbUrl = `mongodb+srv://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/`;
+const mongoDbLocal = "mongodb://localhost/chatApp";
 
-mongoose.connect(mongoDbUrl, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => {
-  server.listen(process.env.PORT, () => {
+mongoose.connect(mongoDbUrl, (error) => {
+  if (error) throw error;
+
+  server.listen(PORT, () => {
     console.log("######################");
     console.log("###### API REST ######");
     console.log("######################");
-    console.log(`http://${process.env.IP_SERVER}:${process.env.PORT}/api`);
+    console.log(`http://${IP_SERVER}:${PORT}/api`);
 
     io.sockets.on("connection", (socket) => {
       console.log("NUEVO USUARIO CONECTADO");
@@ -33,6 +31,4 @@ mongoose.connect(mongoDbUrl, {
       });
     });
   });
-}).catch((error) => {
-  console.error("Error en la conexión de MongoDB:", error);
 });

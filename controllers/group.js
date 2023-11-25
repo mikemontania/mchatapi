@@ -1,169 +1,156 @@
 import { User, Group, GroupMessage } from "../models/index.js";
 import { getFilePath } from "../utils/index.js";
-// Método para crear un grupo
-const create = async (req, res) => {
-  try {
-    const { user_id } = req.user;
-    const group = new Group(req.body);
-    group.creator = user_id;
-    group.participants = JSON.parse(req.body.participants);
-    group.participants = [...group.participants, user_id];
 
-    if (req.files.image) {
-      const imagePath = getFilePath(req.files.image);
-      group.image = imagePath;
-    }
+function create(req, res) {
+  const { user_id } = req.user;
+  const group = new Group(req.body);
+  group.creator = user_id;
+  group.participants = JSON.parse(req.body.participants);
+  group.participants = [...group.participants, user_id];
 
-    await group.save();
+  if (req.files.image) {
+    const imagePath = getFilePath(req.files.image);
+    group.image = imagePath;
+  }
 
-    if (!group) {
-      res.status(400).send({ msg: "Error al crear el grupo" });
+  group.save((error, groupStorage) => {
+    if (error) {
+      res.status(500).send({ msg: "Error del servidor" });
     } else {
-      res.status(201).send(group);
+      if (!groupStorage) {
+        res.status(400).send({ msg: "Error al crear el grupo" });
+      } else {
+        res.status(201).send(groupStorage);
+      }
     }
-  } catch (error) {
-    res.status(500).send({ msg: "Error del servidor" });
-  }
-};
+  });
+}
 
-// Método para obtener todos los grupos de un usuario
-const getAll = async (req, res) => {
-  try {
-    const { user_id } = req.user;
-    const groups = await Group.find({ participants: user_id })
-      .populate("creator")
-      .populate("participants");
+function getAll(req, res) {
+  const { user_id } = req.user;
 
-    const arrayGroups = [];
-    for await (const group of groups) {
-      const response = await GroupMessage.findOne({ group: group._id }).sort({
-        createdAt: -1,
-      });
+  Group.find({ participants: user_id })
+    .populate("creator")
+    .populate("participants")
+    .exec(async (error, groups) => {
+      if (error) {
+        res.status(500).send({ msg: "Error al obtener los grupos" });
+      }
 
-      arrayGroups.push({
-        ...group._doc,
-        last_message_date: response?.createdAt || null,
-      });
-    }
+      const arrayGroups = [];
+      for await (const group of groups) {
+        const response = await GroupMessage.findOne({ group: group._id }).sort({
+          createdAt: -1,
+        });
 
-    res.status(200).send(arrayGroups);
-  } catch (error) {
-    res.status(500).send({ msg: "Error al obtener los grupos" });
-  }
-};
+        arrayGroups.push({
+          ...group._doc,
+          last_message_date: response?.createdAt || null,
+        });
+      }
 
-// Método para obtener un grupo específico
-const getGroup = async (req, res) => {
-  try {
-    const group_id = req.params.id;
-    const groupStorage = await Group.findById(group_id).populate("participants");
+      res.status(200).send(arrayGroups);
+    });
+}
 
-    if (!groupStorage) {
+function getGroup(req, res) {
+  const group_id = req.params.id;
+
+  Group.findById(group_id, (error, groupStorage) => {
+    if (error) {
+      res.status(500).send({ msg: "Error del servudor" });
+    } else if (!groupStorage) {
       res.status(400).send({ msg: "No se ha encontrado el grupo" });
     } else {
       res.status(200).send(groupStorage);
     }
-  } catch (error) {
-    res.status(500).send({ msg: "Error del servidor" });
+  }).populate("participants");
+}
+
+async function updateGroup(req, res) {
+  const { id } = req.params;
+  const { name } = req.body;
+
+  const group = await Group.findById(id);
+
+  if (name) group.name = name;
+
+  if (req.files.image) {
+    const imagePath = getFilePath(req.files.image);
+    group.image = imagePath;
   }
-};
 
-// Método para actualizar un grupo
-const updateGroup = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name } = req.body;
-
-    const group = await Group.findById(id);
-
-    if (name) group.name = name;
-
-    if (req.files.image) {
-      const imagePath = getFilePath(req.files.image);
-      group.image = imagePath;
+  Group.findByIdAndUpdate(id, group, (error) => {
+    if (error) {
+      res.status(500).send({ msg: "Error del servidor" });
+    } else {
+      res.status(200).send({ image: group.image, name: group.name });
     }
+  });
+}
 
-    await Group.findByIdAndUpdate(id, group);
+async function exitGroup(req, res) {
+  const { id } = req.params;
+  const { user_id } = req.user;
 
-    res.status(200).send({ image: group.image, name: group.name });
-  } catch (error) {
-    res.status(500).send({ msg: "Error del servidor" });
-  }
-};
+  const group = await Group.findById(id);
 
-// Método para salir de un grupo
-const exitGroup = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { user_id } = req.user;
+  const newParticipants = group.participants.filter(
+    (participant) => participant.toString() !== user_id
+  );
 
-    const group = await Group.findById(id);
+  const newData = {
+    ...group._doc,
+    participants: newParticipants,
+  };
 
-    const newParticipants = group.participants.filter(
-      (participant) => participant.toString() !== user_id
-    );
+  await Group.findByIdAndUpdate(id, newData);
 
-    const newData = {
-      ...group._doc,
-      participants: newParticipants,
-    };
+  res.status(200).send({ msg: "Salida exitosa" });
+}
 
-    await Group.findByIdAndUpdate(id, newData);
+async function addParticipants(req, res) {
+  const { id } = req.params;
+  const { users_id } = req.body;
 
-    res.status(200).send({ msg: "Salida exitosa" });
-  } catch (error) {
-    res.status(500).send({ msg: "Error del servidor" });
-  }
-};
+  const group = await Group.findById(id);
+  const users = await User.find({ _id: users_id });
 
-// Método para añadir participantes a un grupo
-const addParticipants = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { users_id } = req.body;
+  console.log(users_id);
 
-    const group = await Group.findById(id);
-    const users = await User.find({ _id: users_id });
+  const arrayObjectIds = [];
+  users.forEach((user) => {
+    arrayObjectIds.push(user._id);
+  });
 
-    const arrayObjectIds = users.map((user) => user._id);
+  const newData = {
+    ...group._doc,
+    participants: [...group.participants, ...arrayObjectIds],
+  };
 
-    const newData = {
-      ...group._doc,
-      participants: [...group.participants, ...arrayObjectIds],
-    };
+  await Group.findByIdAndUpdate(id, newData);
 
-    await Group.findByIdAndUpdate(id, newData);
+  res.status(200).send({ msg: "Participantes añadidos correctamente" });
+}
 
-    res.status(200).send({ msg: "Participantes añadidos correctamente" });
-  } catch (error) {
-    res.status(500).send({ msg: "Error del servidor" });
-  }
-};
+async function banParticipant(req, res) {
+  const { group_id, user_id } = req.body;
 
-// Método para banear a un participante de un grupo
-const banParticipant = async (req, res) => {
-  try {
-    const { group_id, user_id } = req.body;
+  const group = await Group.findById(group_id);
 
-    const group = await Group.findById(group_id);
+  const newParticipants = group.participants.filter(
+    (participant) => participant.toString() !== user_id
+  );
 
-    const newParticipants = group.participants.filter(
-      (participant) => participant.toString() !== user_id
-    );
+  const newData = {
+    ...group._doc,
+    participants: newParticipants,
+  };
 
-    const newData = {
-      ...group._doc,
-      participants: newParticipants,
-    };
+  await Group.findByIdAndUpdate(group_id, newData);
 
-    await Group.findByIdAndUpdate(group_id, newData);
-
-    res.status(200).send({ msg: "Baneo con éxito" });
-  } catch (error) {
-    res.status(500).send({ msg: "Error del servidor" });
-  }
-};
-
+  res.status(200).send({ msg: "Baneo con existo" });
+}
 
 export const GroupController = {
   create,

@@ -1,7 +1,7 @@
 import { Group, User } from "../models/index.js";
 import { getFilePath } from "../utils/index.js";
-// Obtener información del usuario actual
-const getMe = async (req, res) => {
+
+async function getMe(req, res) {
   const { user_id } = req.user;
 
   try {
@@ -15,10 +15,9 @@ const getMe = async (req, res) => {
   } catch (error) {
     res.status(500).send({ msg: "Error del servidor" });
   }
-};
+}
 
-// Obtener todos los usuarios, excepto el usuario actual
-const getUsers = async (req, res) => {
+async function getUsers(req, res) {
   try {
     const { user_id } = req.user;
     const users = await User.find({ _id: { $ne: user_id } }).select([
@@ -26,17 +25,16 @@ const getUsers = async (req, res) => {
     ]);
 
     if (!users) {
-      res.status(400).send({ msg: "No se han encontrado usuarios" });
+      res.status(400).send({ msg: "No se han encontardo usuarios" });
     } else {
       res.status(200).send(users);
     }
   } catch (error) {
     res.status(500).send({ msg: "Error del servidor" });
   }
-};
+}
 
-// Obtener información de un usuario por ID
-const getUser = async (req, res) => {
+async function getUser(req, res) {
   const { id } = req.params;
 
   try {
@@ -50,10 +48,9 @@ const getUser = async (req, res) => {
   } catch (error) {
     res.status(500).send({ msg: "Error del servidor" });
   }
-};
+}
 
-// Actualizar información del usuario actual
-const updateUser = async (req, res) => {
+async function updateUser(req, res) {
   const { user_id } = req.user;
   const userData = req.body;
 
@@ -62,38 +59,32 @@ const updateUser = async (req, res) => {
     userData.avatar = imagePath;
   }
 
-  try {
-    await User.findByIdAndUpdate({ _id: user_id }, userData);
+  User.findByIdAndUpdate({ _id: user_id }, userData, (error) => {
+    if (error) {
+      res.status(400).send({ msg: "Error al actualizar el usuario" });
+    } else {
+      res.status(200).send(userData);
+    }
+  });
+}
 
-    res.status(200).send(userData);
-  } catch (error) {
-    res.status(400).send({ msg: "Error al actualizar el usuario" });
-  }
-};
-
-// Obtener usuarios que no son participantes de un grupo
-const getUsersExeptParticipantsGroup = async (req, res) => {
+async function getUsersExeptParticipantsGroup(req, res) {
   const { group_id } = req.params;
 
-  try {
-    const group = await Group.findById(group_id);
-    const participantsStrings = group.participants.toString();
-    const participants = participantsStrings.split(",");
+  const group = await Group.findById(group_id);
+  const participantsStrings = group.participants.toString();
+  const participants = participantsStrings.split(",");
 
-    const response = await User.find({ _id: { $nin: participants } }).select([
-      "-password",
-    ]);
+  const response = await User.find({ _id: { $nin: participants } }).select([
+    "-password",
+  ]);
 
-    if (!response) {
-      res.status(400).send({ msg: "No se ha encontrado ningún usuario" });
-    } else {
-      res.status(200).send(response);
-    }
-  } catch (error) {
-    res.status(500).send({ msg: "Error del servidor" });
+  if (!response) {
+    res.status(400).sedn({ msg: "No se ha encontrado ningun usuario" });
+  } else {
+    res.status(200).send(response);
   }
-};
-
+}
 
 export const UserController = {
   getMe,
