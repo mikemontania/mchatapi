@@ -1,42 +1,38 @@
-import { server } from './app.js';
-import { PUERTO, IP_SERVER, DB_HOST, DB_USER, DB_PASS } from './constants.js';
+import mongoose from "mongoose";
+import { server } from "./app.js";
 import { io } from "./utils/index.js";
-import mongoose from 'mongoose';
+import 'dotenv/config';
 
-const URL_DB = `mongodb+srv://${DB_USER}:${DB_PASS}@${DB_HOST}/`;
+const mongoDbUrl = process.env.DB_CNN;
+console.log(mongoDbUrl)
+const mongoDbLocal = "mongodb://localhost/mchat";
 
-mongoose.connect(URL_DB)
-    .then(() => {
-        console.log('Conexión a la base de datos exitosa');
-        // Inicia el servidor API REST
-        server.listen(PUERTO, () => {
-            console.log('#############################');
-            console.log('########## API REST #########');
-            console.log('#############################');
-            console.log(`http://${IP_SERVER}:${PUERTO}/api`);
-            //ya io deberia esta iniciado
-            io.sockets.on("connection", (socket) => {
-                console.log("Nuevo usuario en app")
+mongoose.connect(mongoDbUrl, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => {
+  server.listen(process.env.PORT, () => {
+    console.log("######################");
+    console.log("###### API REST ######");
+    console.log("######################");
+    console.log(`http://${process.env.IP_SERVER}:${process.env.PORT}/api`);
 
+    io.sockets.on("connection", (socket) => {
+      console.log("NUEVO USUARIO CONECTADO");
 
-                socket.on("disconnect", () => {
-                    console.log("usuario desconectado")
-                })
+      socket.on("disconnect", () => {
+        console.log("USUARIO DESCONECTADO");
+      });
 
-                socket.on("subscribe", (room) => {
-                    socket.join(room);
-                    console.log("usuario se ha unido al chat")
-                })
-                socket.io("unsubscribe", (room) => {
-                    socket.leave(room);
-                    console.log("usuario ha sido expulsado")
-                })
+      socket.on("subscribe", (room) => {
+        socket.join(room);
+      });
 
-            })
-        });
-
-
-    })
-    .catch((error) => {
-        console.error('Error de conexión a la base de datos:', error);
+      socket.on("unsubscribe", (room) => {
+        socket.leave(room);
+      });
     });
+  });
+}).catch((error) => {
+  console.error("Error en la conexión de MongoDB:", error);
+});

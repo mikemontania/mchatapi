@@ -1,37 +1,41 @@
-import express from 'express';
-import http from 'http';
-import { initSocketServer } from './utils/index.js';
-import bodyParser from 'body-parser';
-import cors from 'cors';
-import morgan from 'morgan';
-import {authRoutes} from "./routes/index.js";
-const app = express();
-// createServer(app) =>Este método crea un servidor HTTP y toma como argumento una instancia
-// de Express, que representa tu aplicación web. Al pasar app como 
-//argumento, estás configurando el servidor para que maneje las solicitudes
-// HTTP de acuerdo con las rutas y controladores definidos en tu aplicación Express
-const server = http.createServer(app);
+import express from "express";
+import bodyParser from "body-parser";
+import cors from "cors";
+import http from "http";
+import morgan from "morgan";
+import { initSocketServer } from "./utils/index.js";
+import {
+  authRoutes,
+  userRoutes,
+  chatRoutes,
+  chatMessageRoutes,
+  groupRoutes,
+  groupMessageRoutes,
+} from "./routes/index.js";
 
-// Inicia el servidor de Socket.IO y lo adjunta al servidor HTTP
+const app = express();
+const server = http.createServer(app);
 initSocketServer(server);
 
-//Configuracion bodyparser
-app.use(bodyParser.urlencoded({extended:true}));
+// Configure Body Parser
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-//configuracion de carpeta estatica
-app.use(express.static("uploads"))
+// Configure static folder
+app.use(express.static("uploads"));
 
-//configuracion de cors
+// Configure Header HTTP - CORS
 app.use(cors());
 
-//configuracion logger hhtp request
+// Configure logger HTTP request
 app.use(morgan("dev"));
 
+// Configure routings
+app.use("/api", authRoutes);
+app.use("/api", userRoutes);
+app.use("/api", chatRoutes);
+app.use("/api", chatMessageRoutes);
+app.use("/api", groupRoutes);
+app.use("/api", groupMessageRoutes);
 
-//routes
-
-app.use("/api",authRoutes);
-
-// Exporta el servidor HTTP para que pueda ser utilizado en otros archivos
 export { server };
